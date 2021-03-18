@@ -39,32 +39,6 @@ public:
 };
 
 int main() {
-    {
-        RaspiCon con;
-
-        con.addJob(Job{"MAC", [](const Message &message) {
-            std::cout << "MAC ist: " << message.message << std::endl;
-            return Ok;
-        }});
-
-        std::move(con).autoResolve([](const Message &message) {
-            if (message.type == Query) {
-                if (message.message == "PASSWORD") {
-                    return Response{Ok, "123 Passwort :)"};
-                } else if (message.message == "IP") {
-                    return Response{Ok, "127.0.0.0"};
-                }
-            }
-            return Response{Error, ""};
-        });
-    }
-
-    auto serialPort = SerialPort("/dev/ttyS0", BaudRate::B_115200);
-//    while (true) {
-//        static std::string myString;
-//        serialPort.Read(myString);
-//        std::cout << myString;
-//    }
 
     return 0;
 }
