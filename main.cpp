@@ -6,11 +6,11 @@ using namespace mn::CppLinuxSerial;
 class RaspiCon : public SerialConnection {
 private:
     SerialPort serialPort;
-    std::string buffer;
-    std::string readInto;
-    std::string wholeMessageCache;
 
-    void readSingle() {
+    char readSingle() override {
+        static std::string buffer;
+        static std::string readInto;
+
         if (buffer.length() == 0) {
             serialPort.Read(readInto);
             buffer = readInto.substr(1);
@@ -19,6 +19,11 @@ private:
             readInto = buffer[0];
             buffer.erase(0, 1);
         }
+        return readInto[0];
+    }
+
+    void writeBytes(const stringType &input) override {
+        serialPort.Write(input);
     }
 
 public:
@@ -31,43 +36,12 @@ public:
     ~RaspiCon() {
         serialPort.Close();
     }
-
-    Message listen() override {
-        wholeMessageCache = "";
-        while(readInto[0] != WAKE) {
-            readSingle();
-        }
-        // Read Control
-        readSingle();
-        wholeMessageCache += readInto;
-        // Read First Byte of Message Length
-        readSingle();
-        wholeMessageCache += readInto;
-        uint16_t length = 0;
-        std::memcpy((void *) &length, &readInto[0], 1);
-        // Read Second Byte of Message Length
-        readSingle();
-        wholeMessageCache += readInto;
-        std::memcpy((uint8_t *) (&length) + 1, &readInto[0], 1);
-        // Read the Message
-        length = ~length;
-        for (int i = 0; i < length; i++) {
-            readSingle();
-            wholeMessageCache += readInto;
-        }
-
-        return Message::fromBytes(wholeMessageCache);
-    }
-
-    void send(Message message) override {
-        serialPort.Write(message.toBytes());
-    }
 };
 
 int main() {
     RaspiCon con;
 
-    con.addJob(Job{"MAC", [](const Message& message){
+    con.addJob(Job{"MAC", [](const Message &message) {
         std::cout << "MAC ist: " << message.message << std::endl;
         return Ok;
     }});
