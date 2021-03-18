@@ -1,8 +1,20 @@
 #include <SerialConnection.h>
 
-class EspCon : SerialConnection {
+class EspCon : public SerialConnection {
 private:
-    std::string wholeMessageCache;
+    char readSingle() override {
+        // Serial.read() is a non-blocking call.
+        // We turn it into a polling, blocking one 😬
+        while (!Serial.available()) {
+            delay(5);
+        }
+        return Serial.read();
+    }
+
+    void writeBytes(const stringType &input) override {
+        Serial.write(input.c_str());
+    }
+
 public:
     EspCon() {
         Serial.begin(115200);
@@ -10,31 +22,5 @@ public:
 
     ~EspCon() {
         Serial.end();
-    }
-
-    Message listen() override {
-        while(Serial.read() != WAKE) {delay(5);};
-        // Read Control
-        wholeMessageCache = Serial.read();
-        // Read Length First Byte
-        uint16_t length = 0;
-        char current = Serial.read();
-        wholeMessageCache += current;
-        std::memcpy((void*)&length, &current, 1);
-        // Read Length Second Byte
-        current = Serial.read();
-        wholeMessageCache += current;
-        std::memcpy((uint8_t*)(&length)+1, &current, 1);
-        // Read The Message
-        length = ~length;
-        for(int i = 0; i < length; i++) {
-            wholeMessageCache += Serial.read();
-        }
-
-        return Message::fromBytes(wholeMessageCache);
-    }
-
-    void send(Message message) override {
-        Serial.write(message.toBytes().c_str());
     }
 };
