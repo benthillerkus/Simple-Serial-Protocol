@@ -16,4 +16,4 @@ Im Master-Branch implementiert ist das Senden und Empfangen von einzelnen Nachri
 3. Du kannst nun eine neue Instanz deiner Klasse erstellen und mit `listen` und `send` Nachrichten schicken
 
 ## Kaviar
-Alles ist komplett synchron und Fehler, die auftreten könnten werden größtenteils ignoriert.
+Alles ist komplett synchron und Fehler, die auftreten könnten, werden größtenteils ignoriert.
