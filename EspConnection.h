@@ -1,6 +1,6 @@
 #include <SerialConnection.h>
 
-class EspCon : SerialConnection {
+class EspCon : public SerialConnection {
 private:
     char readSingle() override {
         // Serial.read() is a non-blocking call.
