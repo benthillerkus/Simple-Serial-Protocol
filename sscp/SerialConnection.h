@@ -3,6 +3,8 @@
 #include <string>
 #include <cstring> // For std::memcpy
 #include <vector>
+#include <chrono>
+#include <iostream>
 
 typedef std::string stringType;
 const auto WAKE = 0b11001100; // Wake word to listen for
@@ -62,19 +64,32 @@ struct Job {
     const JobCallback callback;
 };
 
+/** This is a simplified version of the Message
+struct with fields you may actually want to
+set. */
+struct Response {
+    Ack ack;
+    stringType message;
+};
+
+/** Represents a Serial Connection (duh).
+You have to override `readSingle` and `writeBytes`.
+You can manually `send` and `listen` to messages
+or fill your instance with jobs and have it auto
+resolve these. */
 class SerialConnection {
 private:
-    std::vector <Job> jobs;
+    std::vector<Job> jobs;
     stringType wholeMessageCache;
 
     /** Read a single char from the Serial connection.
     You need to manage buffers and / or delays
     and prevent placeholders or duplicate values! */
-    virtual char readSingle() = 0;
+    virtual char readSingle() const = 0;
 
     /** Write every single character from the provided String
     as is to the Serial output. */
-    virtual void writeBytes(const stringType &) = 0;
+    virtual void writeBytes(const stringType &) const = 0;
 
 public:
     SerialConnection() = default;
@@ -92,10 +107,10 @@ public:
         uint16_t length;
         auto buffer = readSingle();
         wholeMessageCache += buffer;
-        std::memcpy((uint8_t * ) & length, &buffer, 1);
+        std::memcpy((uint8_t *) &length, &buffer, 1);
         buffer = readSingle();
         wholeMessageCache += buffer;
-        std::memcpy((uint8_t * )(&length) + 1, &buffer, 1);
+        std::memcpy((uint8_t *) (&length) + 1, &buffer, 1);
         // Read the message
         length = ~length;
         for (int i = 0; i < length; i++) {
@@ -105,7 +120,7 @@ public:
         return Message::fromBytes(wholeMessageCache);
     };
 
-    void send(const Message &message) {
+    void send(const Message &message) const {
         writeBytes(message.toBytes());
     };
 
@@ -114,5 +129,47 @@ public:
     to deal with the response. */
     void addJob(const Job &job) {
         jobs.push_back(job);
+    }
+
+    typedef Response(*ResponseHandler)(const Message &);
+
+    /** Let the two partners automatically resolve their jobs
+    and terminate the connection when done.
+    You are not supposed to use your connection instance after
+    this call, as the connection it represents may be
+    closed. To enforce this, the function only accepts rvalues.
+    You can call it with `std::move(YourInstance).autoResolve()` */
+    void autoResolve(const ResponseHandler &responseHandler) &&{
+        // Try to to find out which side has initiative
+        // Lowest timestamp will win.
+        auto now = std::chrono::system_clock::now().time_since_epoch().count();
+        send(Message{jobs.empty() ? Close : KeepOpen, Ok, Query, std::to_string(now)});
+
+        auto hello = listen();
+        bool initiative = (hello.connection == Close or std::strtoll(hello.message.c_str(), nullptr, 10) < now);
+
+        while (true) {
+            while (initiative) {
+                auto job = jobs.back();
+                jobs.pop_back();
+                auto jobsLeft = !jobs.empty();
+
+                send(Message{jobsLeft ? KeepOpen : Close, Ok, Query, job.message});
+                job.callback(listen());
+
+                initiative = jobsLeft;
+            }
+
+            static auto lastIncoming = listen();
+            static auto response = responseHandler(lastIncoming);
+            send(Message{jobs.empty() ? Close : KeepOpen, response.ack, Answer, response.message});
+            if (lastIncoming.connection == Close) {
+                if (!jobs.empty()) {
+                    initiative = true;
+                } else {
+                    break;
+                }
+            }
+        }
     }
 };
