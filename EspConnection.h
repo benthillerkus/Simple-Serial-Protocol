@@ -2,7 +2,7 @@
 
 class EspCon : public SerialConnection {
 private:
-    char readSingle() override {
+    char readSingle() const override {
         // Serial.read() is a non-blocking call.
         // We turn it into a polling, blocking one 😬
         while (!Serial.available()) {
@@ -11,7 +11,7 @@ private:
         return Serial.read();
     }
 
-    void writeBytes(const stringType &input) override {
+    void writeBytes(const stringType &input) const override {
         Serial.write(input.c_str());
     }
 

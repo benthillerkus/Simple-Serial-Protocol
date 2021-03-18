@@ -5,9 +5,9 @@ using namespace mn::CppLinuxSerial;
 
 class RaspiCon : public SerialConnection {
 private:
-    SerialPort serialPort;
+    mutable SerialPort serialPort;
 
-    char readSingle() override {
+    char readSingle() const override {
         static std::string buffer;
         static std::string readInto;
 
@@ -22,12 +22,12 @@ private:
         return readInto[0];
     }
 
-    void writeBytes(const stringType &input) override {
+    void writeBytes(const stringType &input) const override {
         serialPort.Write(input);
     }
 
 public:
-    RaspiCon() :
+    explicit RaspiCon() :
             serialPort("/dev/ttyS0", BaudRate::B_115200) {
         serialPort.SetTimeout(-1);
         serialPort.Open();
@@ -53,5 +53,15 @@ int main() {
     auto message2 = con.listen();
     std::cout << message2.message << std::endl;
 
+    std::move(con).autoResolve([](const Message &message) {
+        if (message.type == Query) {
+            if (message.message == "PASSWORD") {
+                return Response{Ok, "123 Passwort :)"};
+            } else if (message.message == "IP") {
+                return Response{Ok, "127.0.0.0"};
+            }
+        }
+        return Response{Error, ""};
+    });
     return 0;
 }
