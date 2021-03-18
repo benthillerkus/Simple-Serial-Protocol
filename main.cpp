@@ -39,6 +39,16 @@ public:
 };
 
 int main() {
+    RaspiCon raspiCon;
+
+    std::string ssid = "Lösch dein Netz!";
+    std::string password = "123password";
+
+    auto macMessage = raspiCon.listen();
+    raspiCon.send(Message{KeepOpen, Ok, Answer, ssid});
+    raspiCon.send(Message{KeepOpen, Ok, Answer, password});
+
+    std::cout << "Die Mac-Adresse ist: " << macMessage.message << std::endl;
 
     return 0;
 }
