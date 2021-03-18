@@ -15,5 +15,9 @@ Im Master-Branch implementiert ist das Senden und Empfangen von einzelnen Nachri
 2. Erbe die Klasse `SerialConnection` und implementiere die Methoden `readSingle` und `writeBytes`
 3. Du kannst nun eine neue Instanz deiner Klasse erstellen und mit `listen` und `send` Nachrichten schicken
 
+### Installation der Library in Arduino
+Kopiere den Ordner SSCP in deinen Libraries-Ordner, unter Windows ist das `C:\Users\BENUTZERNAME\Documents\Arduino\libraries`.
+Mehr Infos gibt es dazu in der [offiziellen Dokumentation von Arduino](https://www.arduino.cc/en/hacking/libraries)
+
 ## Kaviar
 Alles ist komplett synchron und Fehler, die auftreten könnten, werden größtenteils ignoriert.
