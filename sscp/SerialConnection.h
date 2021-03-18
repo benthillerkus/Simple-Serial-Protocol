@@ -3,6 +3,8 @@
 #include <string>
 #include <cstring> // For std::memcpy
 #include <vector>
+#include <chrono>
+#include <iostream>
 
 typedef std::string stringType;
 const auto WAKE = 0b11001100; // Wake word to listen for
@@ -56,6 +58,7 @@ struct Message {
 };
 
 typedef Ack(*JobCallback)(const Message &);
+
 struct Job {
     const stringType message;
     const JobCallback callback;
@@ -66,7 +69,7 @@ struct with fields you may actually want to
 set. */
 struct Response {
     Ack ack;
-    stringType Message;
+    stringType message;
 };
 
 /** Represents a Serial Connection (duh).
@@ -137,6 +140,36 @@ public:
     closed. To enforce this, the function only accepts rvalues.
     You can call it with `std::move(YourInstance).autoResolve()` */
     void autoResolve(const ResponseHandler &responseHandler) &&{
-        
+        // Try to to find out which side has initiative
+        // Lowest timestamp will win.
+        auto now = std::chrono::system_clock::now().time_since_epoch().count();
+        send(Message{jobs.empty() ? Close : KeepOpen, Ok, Query, std::to_string(now)});
+
+        auto hello = listen();
+        bool initiative = (hello.connection == Close or std::strtoll(hello.message.c_str(), nullptr, 10) < now);
+
+        while (true) {
+            while (initiative) {
+                auto job = jobs.back();
+                jobs.pop_back();
+                auto jobsLeft = !jobs.empty();
+
+                send(Message{jobsLeft ? KeepOpen : Close, Ok, Query, job.message});
+                job.callback(listen());
+
+                initiative = jobsLeft;
+            }
+
+            static auto lastIncoming = listen();
+            static auto response = responseHandler(lastIncoming);
+            send(Message{jobs.empty() ? Close : KeepOpen, response.ack, Answer, response.message});
+            if (lastIncoming.connection == Close) {
+                if (!jobs.empty()) {
+                    initiative = true;
+                } else {
+                    break;
+                }
+            }
+        }
     }
 };

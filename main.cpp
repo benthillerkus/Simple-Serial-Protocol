@@ -39,29 +39,32 @@ public:
 };
 
 int main() {
-    RaspiCon con;
+    {
+        RaspiCon con;
 
-    con.addJob(Job{"MAC", [](const Message &message) {
-        std::cout << "MAC ist: " << message.message << std::endl;
-        return Ok;
-    }});
+        con.addJob(Job{"MAC", [](const Message &message) {
+            std::cout << "MAC ist: " << message.message << std::endl;
+            return Ok;
+        }});
 
-    auto message = con.listen();
-    std::cout << message.message << std::endl;
-
-    con.send(Message{KeepOpen, Ok, Query, "Wie geht's so Ü?"});
-    auto message2 = con.listen();
-    std::cout << message2.message << std::endl;
-
-    std::move(con).autoResolve([](const Message &message) {
-        if (message.type == Query) {
-            if (message.message == "PASSWORD") {
-                return Response{Ok, "123 Passwort :)"};
-            } else if (message.message == "IP") {
-                return Response{Ok, "127.0.0.0"};
+        std::move(con).autoResolve([](const Message &message) {
+            if (message.type == Query) {
+                if (message.message == "PASSWORD") {
+                    return Response{Ok, "123 Passwort :)"};
+                } else if (message.message == "IP") {
+                    return Response{Ok, "127.0.0.0"};
+                }
             }
-        }
-        return Response{Error, ""};
-    });
+            return Response{Error, ""};
+        });
+    }
+
+    auto serialPort = SerialPort("/dev/ttyS0", BaudRate::B_115200);
+//    while (true) {
+//        static std::string myString;
+//        serialPort.Read(myString);
+//        std::cout << myString;
+//    }
+
     return 0;
 }
