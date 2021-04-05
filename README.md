@@ -7,13 +7,14 @@ Im Master-Branch implementiert ist das Senden und Empfangen von einzelnen Nachri
 ## Inhalt
 - Die Library in `SerialConnection.h`
 - Eine Implementierung der Library für Arduino in `EspConnection.h`
-- Eine Implementierung der Library für Linux in Verwendung der Library [CppLinuxSerial](https://github.com/gbmhunter/CppLinuxSerial) in `main.cpp`
-- Eine Demo in der Daten hin und zurückgeschickt werden um einen Access Point mit Webserver zu starten in `WiFiAccessPointSerial.ino` und `main.cpp`
+- Eine Implementierung der Library für Linux in Verwendung der Library [CppLinuxSerial](https://github.com/gbmhunter/CppLinuxSerial) in `RaspiConnection.h`
+- Eine Demo in der Daten hin und zurückgeschickt werden um einen Access Point mit Webserver zu starten in `ArduinoDemo.ino` und `main.cpp`
 
 ## Verwendung
 1. Du musst die Library in dein Projekt einbinden (lol viel glück wenn du cmake benutzt)
 2. Erbe die Klasse `SerialConnection` und implementiere die Methoden `readSingle` und `writeBytes`
-3. Du kannst nun eine neue Instanz deiner Klasse erstellen und mit `listen` und `send` Nachrichten schicken
+3. Erbe den Struct `Message` und implementiere `substring`
+4. Du kannst nun eine neue Instanz deiner Klasse erstellen und mit `listen` und `send` Nachrichten schicken
 
 ### Installation der Library in Arduino
 Kopiere den Ordner SSCP in deinen Libraries-Ordner, unter Windows ist das `C:\Users\BENUTZERNAME\Documents\Arduino\libraries`.

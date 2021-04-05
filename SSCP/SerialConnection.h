@@ -1,10 +1,9 @@
 #pragma once
 
-#include <string>
 #include <cstring> // For std::memcpy
+#include <cstdint>
 
-typedef std::string stringType;
-const auto WAKE = 0b11001100; // Wake word to listen for
+const char WAKE = 0b11001100; // Wake word to listen for
 
 // Bitflags for control byte
 
@@ -21,13 +20,25 @@ enum Type {
 /** Representation of a Message.
 Use `fromBytes` and `toBytes` to convert the actual data
 sent over the wire. */
+template<typename StringType, class MessageType>
 struct Message {
     const Connection connection;
     const Ack ack;
     const Type type;
-    const stringType message;
+    const StringType message;
 
-    stringType toBytes() const {
+    static StringType substring(const StringType &string, size_t from) { return MessageType::substring(string, from); };
+
+    inline bool operator==(const Message &rhs) {
+        return connection == rhs.connection &&
+               ack == rhs.ack &&
+               type == rhs.type &&
+               message == rhs.message;
+    }
+
+    inline bool operator!=(const Message &rhs) { return !(this == rhs); };
+
+    constexpr StringType toBytes() const {
         uint8_t control = 0b00000000;
         if (connection == Close) control |= Close;
         if (ack == Error) control |= Error;
@@ -37,29 +48,21 @@ struct Message {
         // Therefore we need to invert our data to prevent this
         // and pad C-Strings that we construct ourselves!
         uint16_t length = ~message.length();
-        char header[5]{(char) WAKE, (char) ~control}; // 5th byte as C-String delimiter
-        std::memcpy(header + 2, &length, 2); // Copy into bits 3, 4
+        char header[4]{(char) ~control}; // 4th byte as C-String delimiter
+        std::memcpy(header + 1, &length, 2); // Copy into bits 3, 4
 
-        return stringType(header + message);
+        return StringType(header + message);
     }
 
-    static Message fromBytes(const stringType &input) {
-        uint8_t control = ~input[0];
+    constexpr static Message fromBytes(const StringType &input) {
+        uint8_t control = ~((char) input[0]);
         return Message{
                 static_cast<Connection> (control & Close),
                 static_cast<Ack>(control & Error),
                 static_cast<Type>(control & Answer),
-                input.substr(3)
+                substring(input, 3)
         };
     }
-};
-
-/** This is a simplified version of the Message
-struct with fields you may actually want to
-set. */
-struct Response {
-    Ack ack;
-    stringType message;
 };
 
 /** Represents a Serial Connection (duh).
@@ -67,9 +70,10 @@ You have to override `readSingle` and `writeBytes`.
 You can manually `send` and `listen` to messages
 or fill your instance with jobs and have it auto
 resolve these. */
+template<typename StringType, class MessageType>
 class SerialConnection {
 private:
-    stringType wholeMessageCache;
+    StringType wholeMessageCache;
 
     /** Read a single char from the Serial connection.
     You need to manage buffers and / or delays
@@ -78,7 +82,7 @@ private:
 
     /** Write every single character from the provided String
     as is to the Serial output. */
-    virtual void writeBytes(const stringType &) const = 0;
+    virtual void writeBytes(const StringType &) const = 0;
 
 public:
     SerialConnection() = default;
@@ -89,7 +93,7 @@ public:
     Will fucking block everything lol
     You shouldn't actually use this, but instead rely on
     the job system to do its - well - job */
-    Message listen() {
+    Message<StringType, MessageType> listen() {
         while (readSingle() != WAKE) {}; // Wait for wake word
         wholeMessageCache = readSingle(); // Read control byte
         // Read message length
@@ -106,10 +110,11 @@ public:
             wholeMessageCache += readSingle();
         }
 
-        return Message::fromBytes(wholeMessageCache);
+        return Message<StringType, MessageType>::fromBytes(wholeMessageCache);
     };
 
-    void send(const Message &message) const {
+    void send(const Message<StringType, MessageType> &message) const {
+        writeBytes(StringType{WAKE});
         writeBytes(message.toBytes());
     };
 };
